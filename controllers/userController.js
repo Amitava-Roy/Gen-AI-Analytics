@@ -5,74 +5,74 @@ const ResponseDto = require("../utils/ResponseDto");
 const jwt = require("jsonwebtoken");
 const AppError = require("../utils/AppError");
 
-//sing up
+// Sign Up
 exports.signUp = asyncHandler(async (req, res, next) => {
   const { username, password } = req.body;
 
-  //hash the password
+  // Hash the password
   const hashedPassword = await bcrypt.hash(password, 10);
 
-  //create user in the database
-  db.run(
-    `INSERT INTO users (username, password) VALUES (?, ?)`,
-    [username, hashedPassword],
-    function (err) {
-      if (err) {
-        console.log("Error inserting user:", err.message);
-        return next(new AppError("Error inserting user", 500));
-      } else {
-        console.log(`User created with id: ${this.lastID}`);
+  try {
+    // Insert user into database
+    const stmt = db.prepare(
+      `INSERT INTO users (username, password) VALUES (?, ?)`
+    );
+    const result = stmt.run(username, hashedPassword);
 
-        res
-          .status(200)
-          .json(
-            new ResponseDto(
-              { userId: this.lastID },
-              "User created successfully",
-              1
-            )
-          );
-      }
-    }
-  );
+    console.log(`User created with id: ${result.lastInsertRowid}`);
+
+    res
+      .status(200)
+      .json(
+        new ResponseDto(
+          { userId: result.lastInsertRowid },
+          "User created successfully",
+          1
+        )
+      );
+  } catch (err) {
+    console.log("Error inserting user:", err.message);
+    return next(new AppError("Error inserting user", 500));
+  }
 });
 
-//login
+// Login
 exports.login = asyncHandler(async (req, res, next) => {
   const { username, password } = req.body;
 
-  //get user from the database
-  db.get(
-    `SELECT * FROM users WHERE username = ?`,
-    [username],
-    async function (err, row) {
-      if (err) {
-        console.log("Error getting user:", err.message);
-        return next(new AppError("Error getting user", 500));
-      } else if (!row) {
-        return next(new AppError("User not found", 404));
-      } else {
-        //compare password
-        const isMatch = await bcrypt.compare(password, row.password);
+  try {
+    // Get user from the database
+    const user = db
+      .prepare(`SELECT * FROM users WHERE username = ?`)
+      .get(username);
 
-        if (isMatch) {
-          const token = jwt.sign({ id: row.id }, process.env.JWT_SECRET, {
-            expiresIn: process.env.JWT_EXPIRE,
-          });
-          res
-            .status(200)
-            .json(
-              new ResponseDto({ userId: row.id, token }, "Login successful", 1)
-            );
-        } else {
-          return next(new AppError("Invalid credentials", 401));
-        }
-      }
+    if (!user) {
+      return next(new AppError("User not found", 404));
     }
-  );
+
+    // Compare password
+    const isMatch = await bcrypt.compare(password, user.password);
+
+    if (isMatch) {
+      const token = jwt.sign({ id: user.id }, process.env.JWT_SECRET, {
+        expiresIn: process.env.JWT_EXPIRE,
+      });
+
+      res
+        .status(200)
+        .json(
+          new ResponseDto({ userId: user.id, token }, "Login successful", 1)
+        );
+    } else {
+      return next(new AppError("Invalid credentials", 401));
+    }
+  } catch (err) {
+    console.log("Error getting user:", err.message);
+    return next(new AppError("Error getting user", 500));
+  }
 });
 
-//protect
+// Protect Middleware
 exports.protect = asyncHandler(async (req, res, next) => {
   let token;
 
@@ -89,21 +89,16 @@ exports.protect = asyncHandler(async (req, res, next) => {
 
   try {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
-    db.get(
-      `SELECT * FROM users WHERE id = ?`,
-      [decoded.id],
-      function (err, row) {
-        if (err) {
-          console.log("Error getting user:", err.message);
-          return next(new AppError("Error getting user", 500));
-        } else if (!row) {
-          return next(new AppError("User not found", 404));
-        } else {
-          req.user = row;
-          next();
-        }
-      }
-    );
+
+    // Fetch user from DB
+    const user = db.prepare(`SELECT * FROM users WHERE id = ?`).get(decoded.id);
+
+    if (!user) {
+      return next(new AppError("User not found", 404));
+    }
+
+    req.user = user;
+    next();
   } catch (err) {
     return next(new AppError("Not authorized to access this route", 401));
   }

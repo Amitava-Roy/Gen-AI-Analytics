@@ -52,13 +52,13 @@ exports.query = (req, res, next) => {
     return res.status(400).json();
   }
 
-  db.all(sql, (err, rows) => {
-    if (err) {
-      console.log("Error running query:", err.message);
-      return next(new AppError("Error running query", 500));
-    }
+  try {
+    const rows = db.prepare(sql).all();
     return res.status(200).json(new ResponseDto(rows, "Query successful", 1));
-  });
+  } catch (err) {
+    console.log("Error running query:", err.message);
+    return next(new AppError("Error running query", 500));
+  }
 };
 
 exports.explain = (req, res, next) => {
