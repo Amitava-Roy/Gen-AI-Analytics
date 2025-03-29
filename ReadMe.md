@@ -12,34 +12,102 @@ This project is a lightweight backend service that simulates an AI-powered data 
 
 ## **Authentication**
 
-- Users must log in to receive a **Bearer Token**.
+- Users must sign up and log in to receive a **Bearer Token**.
 - All queries must include the **Authorization header** with the token.
 
 ## **Endpoints**
 
-### **1. Query Processing**
+### **1. User Authentication**
+
+#### `POST /users/signUp`
+
+- Registers a new user.
+- Example request in Postman:
+  - **Method:** `POST`
+  - **URL:** `http://localhost:3000/users/signUp`
+  - **Headers:** `Content-Type: application/json`
+  - **Body (raw JSON):**
+    ```json
+    {
+      "username": "testuser",
+      "password": "securepassword"
+    }
+    ```
+
+#### `POST /users/login`
+
+- Logs in an existing user and returns a **Bearer Token**.
+- Example request in Postman:
+  - **Method:** `POST`
+  - **URL:** `http://localhost:3000/users/login`
+  - **Headers:** `Content-Type: application/json`
+  - **Body (raw JSON):**
+    ```json
+    {
+      "username": "testuser",
+      "password": "securepassword"
+    }
+    ```
+- Example response:
+  ```json
+  {
+    "token": "your-auth-token"
+  }
+  ```
+
+### **2. Query Processing** _(Requires Authorization)_
 
 #### `POST /query`
 
 - Accepts a **natural language query** and converts it into an **SQLite query**.
-- Example request:
-  ```json
-  {
-    "query": "What is the total sales last month?"
-  }
-  ```
+- Example request in Postman:
+  - **Method:** `POST`
+  - **URL:** `http://localhost:3000/query`
+  - **Headers:**
+    - `Authorization: Bearer <token>`
+    - `Content-Type: application/json`
+  - **Body (raw JSON):**
+    ```json
+    {
+      "query": "What is the total sales?"
+    }
+    ```
 
-### **2. Query Explanation**
+### **3. Query Explanation** _(Requires Authorization)_
 
 #### `POST /explain`
 
 - Returns a **breakdown of how the query is processed**.
+- Example request in Postman:
+  - **Method:** `POST`
+  - **URL:** `http://localhost:3000/explain`
+  - **Headers:**
+    - `Authorization: Bearer <token>`
+    - `Content-Type: application/json`
+  - **Body (raw JSON):**
+    ```json
+    {
+      "query": "What is the total sales?"
+    }
+    ```
 
-### **3. Query Validation**
+### **4. Query Validation** _(Requires Authorization)_
 
 #### `POST /validate`
 
 - Checks if the given query is **feasible and correct**.
+- Example request in Postman:
+  - **Method:** `POST`
+  - **URL:** `http://localhost:3000/validate`
+  - **Headers:**
+    - `Authorization: Bearer <token>`
+    - `Content-Type: application/json`
+  - **Body (raw JSON):**
+    ```json
+    {
+      "query": "What is the total sales?"
+    }
+    ```
 
 ## **Example Mock Data**
 
@@ -91,17 +159,6 @@ CREATE TABLE sales (
    ```sh
    npm start
    ```
-
-## **Testing the API**
-
-Use **Postman** or **cURL**:
-
-```sh
-curl -X POST "http://localhost:3000/query" \
-     -H "Authorization: Bearer <token>" \
-     -H "Content-Type: application/json" \
-     -d '{"query": "What is the total sales?"}'
-```
 
 ---
 
